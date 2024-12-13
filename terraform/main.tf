@@ -24,7 +24,7 @@ module "lambda_post_function" {
 
   function_name                     = "${var.project_name}-Lights-Config-POST"
   description                       = "REST endpoint for updating lighting schedule configuration file."
-  source_path                       = var.lights_lambda_post_file_directory
+  source_path                       = var.lambda_post_file_directory
   publish                           = true
   cloudwatch_logs_retention_in_days = 90
 
@@ -57,7 +57,7 @@ module "lambda_get_function" {
 
   function_name                     = "${var.project_name}-Lights-Config-GET"
   description                       = "REST endpoint for retrieving the lighting schedule configuration file."
-  source_path                       = var.lights_lambda_get_file_directory
+  source_path                       = var.lambda_get_file_directory
   publish                           = true
   cloudwatch_logs_retention_in_days = 90
 
@@ -81,7 +81,7 @@ module "lambda_get_function" {
 }
 
 ##############################################################################
-# "IAM policy - allows Lambda functions to access the configuration S3 bucket
+# IAM policy - allows Lambda functions to access the configuration S3 bucket
 ##############################################################################
 
 resource "aws_iam_policy" "lambda_s3_access_policy" {
@@ -130,7 +130,7 @@ resource "aws_apigatewayv2_integration" "get" {
 
 resource "aws_apigatewayv2_route" "get" {
   api_id    = data.aws_apigatewayv2_api.this.id
-  route_key = "GET /${var.lights_api_route}"
+  route_key = "GET /${var.api_route}"
   target    = "integrations/${aws_apigatewayv2_integration.get.id}"
 }
 
@@ -143,6 +143,6 @@ resource "aws_apigatewayv2_integration" "post" {
 
 resource "aws_apigatewayv2_route" "post" {
   api_id    = data.aws_apigatewayv2_api.this.id
-  route_key = "POST /${var.lights_api_route}"
+  route_key = "POST /${var.api_route}"
   target    = "integrations/${aws_apigatewayv2_integration.post.id}"
 }
