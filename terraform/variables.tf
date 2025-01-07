@@ -30,6 +30,13 @@ variable "lambda_post_file_directory" {
   default     = "../aws/lights_post_lambda"
 }
 
+variable "lambda_update_file_directory" {
+  description = "Relative location of the directory containing files for daytime update Lambda function"
+  type        = string
+  default     = "../aws/lights_update_daytime"
+}
+
+
 variable "project_name" {
   description = "Name for this project which will be prepended to new resources"
   type        = string

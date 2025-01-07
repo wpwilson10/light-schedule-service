@@ -80,6 +80,31 @@ module "lambda_get_function" {
   policy        = aws_iam_policy.lambda_s3_access_policy.arn
 }
 
+# Function that updates the sunrise and sunset times when invoked by EventBridge
+module "lambda_get_function" {
+  source        = "terraform-aws-modules/lambda/aws"
+  version       = "7.17.0"
+  handler       = local.lambda_handler
+  runtime       = local.lambda_runtime
+  architectures = local.lambda_architecture
+
+  function_name                     = "${var.project_name}-Lights-Update-Sunrise-Sunset"
+  description                       = "Updates the sunrise and sunset times in the lighting schedule configuration file."
+  source_path                       = var.lambda_update_file_directory
+  publish                           = true
+  cloudwatch_logs_retention_in_days = 90
+
+  # matches variables used in function code
+  environment_variables = {
+    CONFIG_BUCKET_NAME = module.lights_config_s3_bucket.s3_bucket_id # use the generated name with prefix
+    CONFIG_KEY_NAME    = local.lights_config_s3_key_name
+  }
+
+  # allow access to the config s3 bucket
+  attach_policy = true
+  policy        = aws_iam_policy.lambda_s3_access_policy.arn
+}
+
 ##############################################################################
 # IAM policy - allows Lambda functions to access the configuration S3 bucket
 ##############################################################################
