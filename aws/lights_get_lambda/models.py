@@ -75,15 +75,31 @@ class LightConfig:
             'night_time': self.night_time
         }
 
-    def __create_schedule_item(self, time: str, timezone_offset: int, 
-                           brightness_warm: int = 0, brightness_cool: int = 0) -> ScheduleItem:
-        """Creates a ScheduleItem with the given parameters."""
-        return {
-            'time': time,
-            'unix_time': convert_to_unix_timestamp(time, timezone_offset),
-            'warmBrightness': brightness_warm,
-            'coolBrightness': brightness_cool
-        }
+    def __create_or_update_schedule_item(
+        self, 
+        existing_item: Optional[ScheduleItem],
+        time: str, 
+        timezone_offset: int,
+        default_bright_warm: int,
+        default_bright_cool: int
+    ) -> ScheduleItem:
+        """Creates a new schedule item or updates existing one preserving brightness values."""
+        if existing_item:
+            # Update time but preserve brightness
+            return ScheduleItem(
+                time=time,
+                unix_time=convert_to_unix_timestamp(time, timezone_offset),
+                warmBrightness=existing_item['warmBrightness'],
+                coolBrightness=existing_item['coolBrightness']
+            )
+        else:
+            # Create new item with default brightness
+            return ScheduleItem(
+                time=time,
+                unix_time=convert_to_unix_timestamp(time, timezone_offset),
+                warmBrightness=default_bright_warm,
+                coolBrightness=default_bright_cool
+            )
 
     def update_schedule_times(self, timezone_offset: int) -> None:
         """Updates all schedule items with Unix timestamps."""
@@ -92,20 +108,35 @@ class LightConfig:
                 item['unix_time'] = convert_to_unix_timestamp(item['time'], timezone_offset)
 
     def update_sleep_times(self, timezone_offset: int) -> None:
-        """Updates sleep-related schedule items."""
-        bed_time = getattr(self.bed_time or {}, 'time', DEFAULT_BED_TIME)
-        night_time = getattr(self.night_time or {}, 'time', DEFAULT_NIGHT_TIME)
+        """Updates sleep-related times while preserving existing values."""
+        # Only update if items don't exist
+        if not self.bed_time:
+            self.bed_time = ScheduleItem(
+                time=DEFAULT_BED_TIME,
+                unix_time=convert_to_unix_timestamp(DEFAULT_BED_TIME, timezone_offset),
+                warmBrightness=DaylightBrightness.BED_TIME[0],
+                coolBrightness=DaylightBrightness.BED_TIME[1]
+            )
+        else:
+            # Update only the unix_time
+            self.bed_time['unix_time'] = convert_to_unix_timestamp(
+                self.bed_time['time'], 
+                timezone_offset
+            )
 
-        self.bed_time = self.__create_schedule_item(
-            bed_time, 
-            timezone_offset, 
-            *DaylightBrightness.BED_TIME
-        )
-        self.night_time = self.__create_schedule_item(
-            night_time, 
-            timezone_offset, 
-            *DaylightBrightness.NIGHT_TIME
-        )
+        if not self.night_time:
+            self.night_time = ScheduleItem(
+                time=DEFAULT_NIGHT_TIME,
+                unix_time=convert_to_unix_timestamp(DEFAULT_NIGHT_TIME, timezone_offset),
+                warmBrightness=DaylightBrightness.NIGHT_TIME[0],
+                coolBrightness=DaylightBrightness.NIGHT_TIME[1]
+            )
+        else:
+            # Update only the unix_time
+            self.night_time['unix_time'] = convert_to_unix_timestamp(
+                self.night_time['time'], 
+                timezone_offset
+            )
 
     def __enforce_minimum_time(self, time_str: str, minimum_time: str) -> str:
         """Ensures a time is not earlier than the minimum time."""
@@ -130,17 +161,22 @@ class LightConfig:
         minutes = total_minutes % 60
         return f"{hours:02d}:{minutes:02d}"
 
-    def update_daylight_times(self, sunrise: str, sunset: str,
-                            twilight_begin: str, twilight_end: str,
-                            timezone_offset: int) -> None:
-        """Updates daylight-related schedule items."""
+    def update_daylight_times(
+        self,
+        sunrise: str,
+        sunset: str,
+        twilight_begin: str,
+        twilight_end: str,
+        timezone_offset: int
+    ) -> None:
+        """Updates daylight-related schedule items preserving brightness values."""
         # Store natural times first
-        self.natural_sunset = self.__create_schedule_item(
-            sunset, timezone_offset,
+        self.natural_sunset = self.__create_or_update_schedule_item(
+            self.natural_sunset, sunset, timezone_offset,
             *DaylightBrightness.SUNSET
         )
-        self.natural_twilight_end = self.__create_schedule_item(
-            twilight_end, timezone_offset,
+        self.natural_twilight_end = self.__create_or_update_schedule_item(
+            self.natural_twilight_end, twilight_end, timezone_offset,
             *DaylightBrightness.CIVIL_TWILIGHT_END
         )
 
@@ -148,20 +184,20 @@ class LightConfig:
         adjusted_sunset = self.__enforce_minimum_time(sunset, self.MIN_SUNSET_TIME)
         adjusted_twilight_end = self.__adjust_twilight_end(adjusted_sunset)
 
-        # Create schedule items with adjusted times
-        self.sunrise = self.__create_schedule_item(
-            sunrise, timezone_offset, 
+        # Update schedule items preserving brightness values
+        self.sunrise = self.__create_or_update_schedule_item(
+            self.sunrise, sunrise, timezone_offset,
             *DaylightBrightness.SUNRISE
         )
-        self.sunset = self.__create_schedule_item(
-            adjusted_sunset, timezone_offset, 
+        self.sunset = self.__create_or_update_schedule_item(
+            self.sunset, adjusted_sunset, timezone_offset,
             *DaylightBrightness.SUNSET
         )
-        self.civil_twilight_begin = self.__create_schedule_item(
-            twilight_begin, timezone_offset, 
+        self.civil_twilight_begin = self.__create_or_update_schedule_item(
+            self.civil_twilight_begin, twilight_begin, timezone_offset,
             *DaylightBrightness.CIVIL_TWILIGHT_BEGIN
         )
-        self.civil_twilight_end = self.__create_schedule_item(
-            adjusted_twilight_end, timezone_offset, 
+        self.civil_twilight_end = self.__create_or_update_schedule_item(
+            self.civil_twilight_end, adjusted_twilight_end, timezone_offset,
             *DaylightBrightness.CIVIL_TWILIGHT_END
         )
