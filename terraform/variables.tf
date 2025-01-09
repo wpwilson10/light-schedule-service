@@ -49,3 +49,8 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "secret_token" {
+  description = "Shared secret token used to authenticate calls to light scheduling API"
+  type        = string
+}
+

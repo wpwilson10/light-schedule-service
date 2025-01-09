@@ -14,6 +14,7 @@ s3 = boto3.client("s3")
 # Environment variables for the bucket and key (configure these in AWS Lambda settings)
 CONFIG_BUCKET_NAME = os.environ.get("CONFIG_BUCKET_NAME", "Default_S3_Bucket")
 CONFIG_KEY_NAME = os.environ.get("CONFIG_KEY_NAME", "Config_Key")
+SECRET_TOKEN = os.environ.get("SECRET_TOKEN", "default-secret-token")
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -38,6 +39,16 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 "statusCode": 405,
                 "body": json.dumps({"error": "Only PUT method is allowed."}),
             }
+        
+        # Check the custom header for the pre-shared token
+        headers = event.get("headers", {})
+        # Lowercase is important for HTTP 2 protocol
+        token = headers.get("x-custom-auth")
+
+        # Validate the token
+        if token != SECRET_TOKEN:
+            logger.info(msg="Denied unauthorized request")
+            return {"statusCode": 403, "body": "Unauthorized"}
 
         # Parse the body
         body = json.loads(event.get("body", "{}"))

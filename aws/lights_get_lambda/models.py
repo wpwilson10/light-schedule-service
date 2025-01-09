@@ -1,5 +1,6 @@
 from typing import Literal, Optional, TypedDict
-from utils import convert_to_unix_timestamp
+from utils import convert_to_unix_timestamp, convert_to_tomorrow_unix_timestamp
+from datetime import datetime, timedelta
 
 class ScheduleItem(TypedDict):
     """Represents a scheduled lighting configuration item."""
@@ -26,6 +27,7 @@ class LightConfig:
     DEFAULT_MODE = "dayNight"  # Add default mode
     MIN_SUNSET_TIME = "19:30"  # 7:30 PM
     TWILIGHT_END_OFFSET = 30   # minutes after sunset
+    UPDATE_TIME = "06:00"  # 6 AM
 
     def __init__(self, mode: Literal["dayNight", "schedule", "demo"], schedule: list[ScheduleItem]):
         self.mode: Literal["dayNight", "schedule", "demo"] = mode
@@ -38,6 +40,8 @@ class LightConfig:
         self.night_time: Optional[ScheduleItem] = None
         self.natural_sunset: Optional[ScheduleItem] = None
         self.natural_twilight_end: Optional[ScheduleItem] = None
+        self.update_time: str = self.UPDATE_TIME
+        self.update_time_unix: int = convert_to_tomorrow_unix_timestamp(self.UPDATE_TIME, 0)  # Initialize with UTC
 
     @classmethod
     def create_empty(cls) -> 'LightConfig':
@@ -56,7 +60,8 @@ class LightConfig:
         )
         # Copy any existing schedule items, use None as default
         for field in ['sunrise', 'sunset', 'civil_twilight_begin', 
-                     'civil_twilight_end', 'bed_time', 'night_time']:
+                     'civil_twilight_end', 'bed_time', 'night_time',
+                     'natural_sunset', 'natural_twilight_end']:
             setattr(config, field, data.get(field))
         return config
 
@@ -72,7 +77,9 @@ class LightConfig:
             'civil_twilight_end': self.civil_twilight_end,
             'natural_twilight_end': self.natural_twilight_end,
             'bed_time': self.bed_time,
-            'night_time': self.night_time
+            'night_time': self.night_time,
+            'update_time': self.update_time,
+            'update_time_unix': self.update_time_unix
         }
 
     def __create_or_update_schedule_item(
@@ -201,3 +208,7 @@ class LightConfig:
             self.civil_twilight_end, adjusted_twilight_end, timezone_offset,
             *DaylightBrightness.CIVIL_TWILIGHT_END
         )
+
+    def update_next_update_time(self, timezone_offset: int) -> None:
+        """Updates the Unix timestamp for tomorrow's update time."""
+        self.update_time_unix = convert_to_tomorrow_unix_timestamp(self.UPDATE_TIME, timezone_offset)

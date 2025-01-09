@@ -66,7 +66,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if timezone_offset is not None:
             config_data.update_schedule_times(timezone_offset)
             config_data.update_sleep_times(timezone_offset)
-
+            config_data.update_next_update_time(timezone_offset)
+            
         # Get and update daylight times if available
         daylight_times = get_daylight_times(event)
         if daylight_times:
