@@ -32,6 +32,7 @@ module "lambda_post_function" {
   environment_variables = {
     CONFIG_BUCKET_NAME = module.lights_config_s3_bucket.s3_bucket_id # use the generated name with prefix
     CONFIG_KEY_NAME    = local.lights_config_s3_key_name
+    SECRET_TOKEN       = var.secret_token
   }
 
   # allow API Gateway to call the function

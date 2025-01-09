@@ -27,7 +27,7 @@ class LightConfig:
     DEFAULT_MODE = "dayNight"  # Add default mode
     MIN_SUNSET_TIME = "19:30"  # 7:30 PM
     TWILIGHT_END_OFFSET = 30   # minutes after sunset
-    UPDATE_TIME = "03:00"  # 3 AM
+    UPDATE_TIME = "06:00"  # 6 AM
 
     def __init__(self, mode: Literal["dayNight", "schedule", "demo"], schedule: list[ScheduleItem]):
         self.mode: Literal["dayNight", "schedule", "demo"] = mode
