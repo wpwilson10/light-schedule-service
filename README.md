@@ -120,7 +120,7 @@ The service handles time updates automatically in several ways:
 - Unix timestamps are calculated based on the user's timezone (derived from IP address)
 - The schedule list is executed based on unix timestamps for the current day
 
-#### DayNight Mode
+### DayNight Mode
 
 When operating in "dayNight" mode:
 
@@ -131,7 +131,7 @@ When operating in "dayNight" mode:
 - If sunset is before 19:30, dusk is set to 30 minutes after sunset
 - Default sleep schedule (bed_time: 23:00, night_time: 23:30) is applied if not set
 
-#### Update Schedule
+### Update Schedule
 
 - The service automatically updates times daily at 06:00 (configurable)
 - The update_time_unix field indicates when the next update will occur
