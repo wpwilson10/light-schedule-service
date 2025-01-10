@@ -18,7 +18,7 @@ Create a terraform.tfvars file under ./terraform and configure as desired.
 
 Required variables:
 
--   api_gateway - the ID of the API Gateway with which this service integrates
+- api_gateway - the ID of the API Gateway with which this service integrates
 
 See variables.tf for more information.
 
@@ -34,56 +34,105 @@ terraform apply
 
 ## Usage
 
+### Required Headers
+
+All requests must include the following authentication header:
+
+```
+x-custom-auth: your-secret-token
+```
+
 ### Save Configuration
 
 To save a configuration file, send a POST request to the endpoint exposed by the API Gateway with the configuration JSON as the body.
 
-The format of the JSON payload should have a body which matches the following interfaces.
+The format of the JSON payload should match the following interfaces:
 
-```
-interface ScheduleData {
-  mode: "dayNight" | "scheduled" | "demo"; // the mode of operation
-  schedule: ScheduleEntry[];               // a list of ScheduleEntry defining brightness levels for a given time of day.
-}
-
+```typescript
 interface ScheduleEntry {
-  id: number;                              // a unique identifier for the schedule entry
-  time: string;                            // the time at which the lighting change should occur, formatted as HH:MM (e.g., "23:45").
-  warmBrightness: number;                  // the brightness level for the warm light (0-100).
-  coolBrightness: number;                  // the brightness level for the cool light (0-100).
+  time: string; // Time in 24-hour format (HH:MM)
+  warmBrightness: number; // Warm light brightness (0-100)
+  coolBrightness: number; // Cool light brightness (0-100)
+  unix_time: number; // Unix timestamp for this entry
+}
+
+interface ScheduleData {
+  mode: 'dayNight' | 'scheduled' | 'demo'; // Operating mode
+  schedule: ScheduleEntry[]; // User-defined schedule entries
+  sunrise: ScheduleEntry; // Sunrise settings
+  sunset: ScheduleEntry; // Sunset settings
+  natural_sunset: ScheduleEntry; // Natural sunset settings
+  civil_twilight_begin: ScheduleEntry; // Civil twilight begin settings
+  civil_twilight_end: ScheduleEntry; // Civil twilight end settings
+  natural_twilight_end: ScheduleEntry; // Natural twilight end settings
+  bed_time: ScheduleEntry; // Bedtime settings
+  night_time: ScheduleEntry; // Night time settings
+  update_time: string; // Scheduled update time (HH:MM)
+  update_time_unix: number; // Next update Unix timestamp
 }
 ```
 
-For example:
+Example request:
 
 ```
 POST https://api.example.com/lights
+x-custom-auth: your-secret-token
 
 {
-  "mode": "scheduled",
-  "schedule": [
-    {
-      "id": 1,
-      "time": "01:23",
-      "warmBrightness": 75,
-      "coolBrightness": 60
-    },
-    {
-      "id": 2,
-      "time": "23:45",
-      "warmBrightness": 60,
-      "coolBrightness": 70
-    }
-  ]
+  "mode": "dayNight",
+  "schedule": [],
+  "sunrise": {
+    "time": "06:30",
+    "warmBrightness": 75,
+    "coolBrightness": 100,
+    "unix_time": 1677133800
+  },
+  "sunset": {
+    "time": "19:30",
+    "warmBrightness": 75,
+    "coolBrightness": 100,
+    "unix_time": 1677180600
+  },
+  // ... other schedule entries ...
+  "update_time": "06:00",
+  "update_time_unix": 1677132000
 }
 ```
 
 ### Retrieve Configuration
 
-To retrieve the current configuration, send a GET request to the Lambda endpoint. No body is required. This will return a configuration JSON object like described above.
-
-For example:
+To retrieve the current configuration:
 
 ```
 GET https://api.example.com/lights
+x-custom-auth: your-secret-token
 ```
+
+The response will contain a complete ScheduleData object as described above.
+
+## Features
+
+The service handles time updates automatically in several ways:
+
+### Schedule Time Updates
+
+- Fixed schedule entries maintain their HH:MM times but get updated unix timestamps daily
+- Unix timestamps are calculated based on the user's timezone (derived from IP address)
+- The schedule list is executed based on unix timestamps for the current day
+
+#### DayNight Mode
+
+When operating in "dayNight" mode:
+
+- Sunrise/sunset times are fetched based on the user's geolocation (from IP address)
+- Daytime events (sunrise, sunset, dusk, dawn) are updated with actual times for the current location
+- Each light event gets a unix timestamp for the current day
+- A minimum sunset time of 19:30 is enforced to prevent early darkness in winter
+- If sunset is before 19:30, dusk is set to 30 minutes after sunset
+- Default sleep schedule (bed_time: 23:00, night_time: 23:30) is applied if not set
+
+#### Update Schedule
+
+- The service automatically updates times daily at 06:00 (configurable)
+- The update_time_unix field indicates when the next update will occur
+- All unix timestamps are recalculated during the daily update

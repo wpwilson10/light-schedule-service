@@ -145,8 +145,11 @@ class LightConfig:
                 timezone_offset
             )
 
-    def __enforce_minimum_time(self, time_str: str, minimum_time: str) -> str:
-        """Ensures a time is not earlier than the minimum time."""
+    def __enforce_minimum_time(self, time_str: str, minimum_time: str) -> tuple[str, bool]:
+        """
+        Ensures a time is not earlier than the minimum time.
+        Returns tuple of (adjusted_time, was_adjusted)
+        """
         time_parts = list(map(int, time_str.split(':')))
         min_parts = list(map(int, minimum_time.split(':')))
         
@@ -155,8 +158,8 @@ class LightConfig:
         min_mins = min_parts[0] * 60 + min_parts[1]
         
         if time_mins < min_mins:
-            return minimum_time
-        return time_str
+            return minimum_time, True
+        return time_str, False
 
     def __adjust_twilight_end(self, sunset_time: str) -> str:
         """Calculates twilight end time based on sunset."""
@@ -187,9 +190,9 @@ class LightConfig:
             *DaylightBrightness.CIVIL_TWILIGHT_END
         )
 
-        # Enforce minimum sunset time and adjust twilight end
-        adjusted_sunset = self.__enforce_minimum_time(sunset, self.MIN_SUNSET_TIME)
-        adjusted_twilight_end = self.__adjust_twilight_end(adjusted_sunset)
+        # Enforce minimum sunset time and adjust twilight end only if sunset was adjusted
+        adjusted_sunset, was_adjusted = self.__enforce_minimum_time(sunset, self.MIN_SUNSET_TIME)
+        adjusted_twilight_end = self.__adjust_twilight_end(adjusted_sunset) if was_adjusted else twilight_end
 
         # Update schedule items preserving brightness values
         self.sunrise = self.__create_or_update_schedule_item(

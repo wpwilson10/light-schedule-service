@@ -3,6 +3,12 @@ variable "api_gateway_id" {
   type        = string
 }
 
+variable "api_route" {
+  description = "API route for lights service (e.g. api_domain_prefix.domain_name.com/lights_api_route)"
+  type        = string
+  default     = "lights"
+}
+
 # Uses the access credential values in the profile located at
 #  "~/.aws/credentials" (Linux) or "%USERPROFILE%\.aws\credentials" (Windows).
 # See https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
@@ -12,10 +18,10 @@ variable "credentials_profile" {
   default     = "default"
 }
 
-variable "api_route" {
-  description = "API route for lights service (e.g. api_domain_prefix.domain_name.com/lights_api_route)"
+variable "github_repo" {
+  description = "GitHub repository managing this project"
   type        = string
-  default     = "lights"
+  default     = "github.com/wpwilson10/light-schedule-service"
 }
 
 variable "lambda_get_file_directory" {
@@ -52,5 +58,6 @@ variable "region" {
 variable "secret_token" {
   description = "Shared secret token used to authenticate calls to light scheduling API"
   type        = string
+  default     = "my_secret_token"
 }
 
