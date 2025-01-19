@@ -136,3 +136,7 @@ When operating in "dayNight" mode:
 - The service automatically updates times daily at 06:00 (configurable)
 - The update_time_unix field indicates when the next update will occur
 - All unix timestamps are recalculated during the daily update
+
+## Attribution
+
+https://sunrise-sunset.org/api
