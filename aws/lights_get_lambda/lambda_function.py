@@ -3,7 +3,6 @@ import os
 import boto3
 import logging
 import urllib3
-from datetime import datetime, timedelta
 from typing import Any, Optional
 from models import LightConfig
 from utils import convert_to_hhmm
@@ -23,9 +22,10 @@ http = urllib3.PoolManager()
 CONFIG_BUCKET_NAME = os.environ.get("CONFIG_BUCKET_NAME", "Default_S3_Bucket")
 CONFIG_KEY_NAME = os.environ.get("CONFIG_KEY_NAME", "Config_Key")
 
+
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """
-    AWS Lambda handler to return lighting configuration from S3 as a JSON payload for an 
+    AWS Lambda handler to return lighting configuration from S3 as a JSON payload for an
     API Gateway GET request.
 
     Args:
@@ -38,6 +38,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         # Log the incoming event
         logger.info("Received event: %s", json.dumps(event))
+        data: dict[Any, Any] = {}
 
         # Validate the HTTP method
         http_method: str = event.get("requestContext", {}).get("http", {}).get("method")
@@ -48,32 +49,39 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             }
 
         try:
-            # Retrieve the object from S3
             response = s3.get_object(Bucket=CONFIG_BUCKET_NAME, Key=CONFIG_KEY_NAME)
             body = response["Body"].read().decode("utf-8")
             data = json.loads(body)
         except (s3.exceptions.NoSuchKey, json.JSONDecodeError) as e:
             logger.warning(f"No valid configuration found: {e}, creating empty config")
-            data = {}
 
         # Create LightConfig instance from S3 data or empty if none exists
         config_data = LightConfig.from_dict(data)
-        
+
         # Get timezone offset from geolocation
         timezone_offset = get_timezone_offset(event)
-        
+
         # Update schedule times if timezone offset is available
         if timezone_offset is not None:
             config_data.update_schedule_times(timezone_offset)
             config_data.update_sleep_times(timezone_offset)
             config_data.update_next_update_time(timezone_offset)
-            
+
         # Get and update daylight times if available
         daylight_times = get_daylight_times(event)
-        if daylight_times:
-            sunrise, sunset, twilight_begin, twilight_end, tz_offset = daylight_times
-            config_data.update_daylight_times(sunrise, sunset, twilight_begin, 
-                                            twilight_end, timezone_offset)
+
+        if daylight_times is not None:
+            sunrise, sunset, twilight_begin, twilight_end, timezone_offset = (
+                daylight_times
+            )
+
+            config_data.update_daylight_times(
+                sunrise=sunrise,
+                sunset=sunset,
+                twilight_begin=twilight_begin,
+                twilight_end=twilight_end,
+                timezone_offset=timezone_offset,
+            )
 
         # Return the JSON payload
         return {
@@ -89,6 +97,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "body": json.dumps({"error": "Internal server error"}),
         }
 
+
 def get_timezone_offset(event: dict[str, Any]) -> Optional[int]:
     """Get timezone offset from geolocation data."""
     ip = get_ip_from_event(event)
@@ -100,8 +109,11 @@ def get_timezone_offset(event: dict[str, Any]) -> Optional[int]:
         return None
 
     return geolocation_data.get("offset")  # offset in seconds from UTC
-    
-def get_daylight_times(event: dict[str, Any]) -> Optional[tuple[str, str, str, str, int]]:
+
+
+def get_daylight_times(
+    event: dict[str, Any]
+) -> Optional[tuple[str, str, str, str, int]]:
     """
     Extracts the IP address from the event, fetches geolocation details, and retrieves
     sunrise, sunset, and twilight times based on the latitude, longitude, and timezone.
@@ -110,7 +122,7 @@ def get_daylight_times(event: dict[str, Any]) -> Optional[tuple[str, str, str, s
         event (dict[str, Any]): The event data passed by API Gateway.
 
     Returns:
-        Optional[tuple[str, str, str, str, int]]: 
+        Optional[tuple[str, str, str, str, int]]:
             If successful, returns a tuple containing:
             - sunrise time (HH:mm)
             - sunset time (HH:mm)
@@ -152,7 +164,9 @@ def get_daylight_times(event: dict[str, Any]) -> Optional[tuple[str, str, str, s
     # Step 5: Format the response with sunrise, sunset, and twilight times
     sunrise: str = sunrise_sunset_data["results"].get("sunrise")
     sunset: str = sunrise_sunset_data["results"].get("sunset")
-    civil_twilight_begin: str = sunrise_sunset_data["results"].get("civil_twilight_begin")
+    civil_twilight_begin: str = sunrise_sunset_data["results"].get(
+        "civil_twilight_begin"
+    )
     civil_twilight_end: str = sunrise_sunset_data["results"].get("civil_twilight_end")
 
     # Convert times to HH:mm format
@@ -160,8 +174,15 @@ def get_daylight_times(event: dict[str, Any]) -> Optional[tuple[str, str, str, s
     sunset_hhmm = convert_to_hhmm(sunset)
     twilight_begin_hhmm = convert_to_hhmm(civil_twilight_begin)
     twilight_end_hhmm = convert_to_hhmm(civil_twilight_end)
-    
-    return (sunrise_hhmm, sunset_hhmm, twilight_begin_hhmm, twilight_end_hhmm, timezone_offset)
+
+    return (
+        sunrise_hhmm,
+        sunset_hhmm,
+        twilight_begin_hhmm,
+        twilight_end_hhmm,
+        timezone_offset,
+    )
+
 
 def get_ip_from_event(event: dict[str, Any]):
     """Extracts the IP address from the event's request context."""
@@ -172,8 +193,8 @@ def get_geolocation_data(ip: str):
     """Fetches geolocation details using ip-api based on the provided IP."""
     geolocation_url = f"http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,offset,query"
     try:
-        geolocation_response = http.request('GET', geolocation_url)
-        geolocation_data = json.loads(geolocation_response.data.decode('utf-8'))
+        geolocation_response = http.request("GET", geolocation_url)
+        geolocation_data = json.loads(geolocation_response.data.decode("utf-8"))
 
         # Check if the status is 'success'
         if geolocation_data.get("status") == "success":
@@ -202,8 +223,8 @@ def get_sunrise_sunset_data(
         f"https://api.sunrise-sunset.org/json?lat={lat}&lng={lon}&tzid={timezone}"
     )
     try:
-        sunrise_sunset_response = http.request('GET', sunrise_sunset_url)
-        sunrise_sunset_data = json.loads(sunrise_sunset_response.data.decode('utf-8'))
+        sunrise_sunset_response = http.request("GET", sunrise_sunset_url)
+        sunrise_sunset_data = json.loads(sunrise_sunset_response.data.decode("utf-8"))
 
         # Check if the status is 'OK'
         if sunrise_sunset_data.get("status") == "OK":
@@ -212,4 +233,3 @@ def get_sunrise_sunset_data(
             return None
     except urllib3.exceptions.RequestError:
         return None
-
