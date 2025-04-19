@@ -33,7 +33,7 @@ class LightConfig:
     DEFAULT_MODE = "dayNight"  # Add default mode
     MIN_SUNSET_TIME = "19:30"  # 7:30 PM
     TWILIGHT_END_OFFSET = 30  # minutes after sunset
-    UPDATE_TIME = "06:00"  # 6 AM
+    UPDATE_TIME = "04:00"  # 4 AM
 
     def __init__(
         self,
