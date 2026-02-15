@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import json
 import os
 import boto3
 import logging
 import urllib3
-from mypy_boto3_s3 import S3Client
+from typing import TYPE_CHECKING
 from models import (
     ConfigValue, GeolocationResponse, LambdaEvent, LambdaResponse,
     LightConfig, SunriseSunsetResponse,
 )
 from utils import convert_to_hhmm
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 # Configure logging
 logger = logging.getLogger()

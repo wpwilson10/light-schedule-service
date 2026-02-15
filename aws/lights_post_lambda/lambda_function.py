@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import json
 import boto3
 import os
 import logging
-from typing import Any, NotRequired, TypedDict
-from mypy_boto3_s3 import S3Client
+from typing import Any, NotRequired, TypedDict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 # Types duplicated from lights_get_lambda/models.py (separate Lambda packages)
 ConfigValue = str | int | list[dict[str, str | int]]
