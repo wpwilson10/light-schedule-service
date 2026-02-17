@@ -14,8 +14,8 @@ def convert_to_unix_timestamp(time_str: str, utc_offset_seconds: int) -> int:
         time_str (str): Time in HH:mm format
         utc_offset_seconds (int): Offset from UTC in seconds
     """
-    # Get today's date
-    today = datetime.now().date()
+    # Get today's date in the caller's local timezone (Lambda runs in UTC)
+    today = (datetime.now() + timedelta(seconds=utc_offset_seconds)).date()
     
     # Parse the time
     hour, minute = map(int, time_str.split(':'))
