@@ -1,10 +1,10 @@
 # light-schedule-service
 
-Serverless REST API integrating functionalities from WpwilsonSite and Sunrise_Lamp.
+Serverless REST API integrating functionalities from WpwilsonSite and sunrise-lamp-aws.
 
 ## Description
 
-This project provides a service that allows for saving and retrieving a configuration file for controlling the lighting control system implemented in [Sunrise_Lamp](https://github.com/wpwilson10/Sunrise_Lamp) using the core AWS infrastucture implemented in [WpwilsonSite](https://github.com/wpwilson10/WpwilsonSite). This service provides the integration between those projects using AWS Lambda functions to store and retrieve configuration files in Amazon S3, making it easy to manage and update lighting configurations remotely.
+This project provides a service that allows for saving and retrieving a configuration file for controlling the lighting control system implemented in [sunrise-lamp-aws](https://github.com/wpwilson10/sunrise-lamp-aws) using the core AWS infrastructure implemented in [WpwilsonSite](https://github.com/wpwilson10/WpwilsonSite). This service provides the integration between those projects using AWS Lambda functions to store and retrieve configuration files in Amazon S3, making it easy to manage and update lighting configurations remotely.
 
 The architecture for this project follows [AWS's RESTful microservices scenario](https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/restful-microservices.html) which is a serverless application framework and part of AWS's recommended Well-Architected Framework. By using an API Gateway which calls Lambda functions backed by an S3 bucket, this solution is scalable, distributed, and fault-tolerant by default.
 
@@ -49,28 +49,22 @@ To save a configuration file, send a POST request to the endpoint exposed by the
 The format of the JSON payload should match the following interfaces:
 
 ```typescript
-interface ScheduleEntry {
-  time: string; // Time in 24-hour format (HH:MM)
+interface BrightnessScheduleEntry {
+  time: string; // Time in 24-hour format (HH:mm)
+  unixTime: number; // Unix timestamp for this entry
   warmBrightness: number; // Warm light brightness (0-100)
   coolBrightness: number; // Cool light brightness (0-100)
-  unix_time: number; // Unix timestamp for this entry
+  label: string; // Entry identifier (e.g., "sunrise", "sunset")
 }
 
 interface ScheduleData {
   mode: 'dayNight' | 'scheduled' | 'demo'; // Operating mode
-  schedule: ScheduleEntry[]; // User-defined schedule entries
-  sunrise: ScheduleEntry; // Sunrise settings
-  sunset: ScheduleEntry; // Sunset settings
-  natural_sunset: ScheduleEntry; // Natural sunset settings
-  civil_twilight_begin: ScheduleEntry; // Civil twilight begin settings
-  civil_twilight_end: ScheduleEntry; // Civil twilight end settings
-  natural_twilight_end: ScheduleEntry; // Natural twilight end settings
-  bed_time: ScheduleEntry; // Bedtime settings
-  night_time: ScheduleEntry; // Night time settings
-  update_time: string; // Scheduled update time (HH:MM)
-  update_time_unix: number; // Next update Unix timestamp
+  serverTime: number; // Current server Unix timestamp
+  brightnessSchedule: BrightnessScheduleEntry[]; // Unified schedule array (sorted by unixTime)
 }
 ```
+
+For complete API documentation, see [docs/api_contract.md](./docs/api_contract.md).
 
 Example request:
 
@@ -80,22 +74,14 @@ x-custom-auth: your-secret-token
 
 {
   "mode": "dayNight",
-  "schedule": [],
-  "sunrise": {
-    "time": "06:30",
-    "warmBrightness": 75,
-    "coolBrightness": 100,
-    "unix_time": 1677133800
-  },
-  "sunset": {
-    "time": "19:30",
-    "warmBrightness": 75,
-    "coolBrightness": 100,
-    "unix_time": 1677180600
-  },
-  // ... other schedule entries ...
-  "update_time": "06:00",
-  "update_time_unix": 1677132000
+  "brightnessSchedule": [
+    {"time": "06:30", "warmBrightness": 25, "coolBrightness": 0, "label": "civil_twilight_begin"},
+    {"time": "07:00", "warmBrightness": 75, "coolBrightness": 100, "label": "sunrise"},
+    {"time": "19:30", "warmBrightness": 75, "coolBrightness": 100, "label": "sunset"},
+    {"time": "20:00", "warmBrightness": 100, "coolBrightness": 0, "label": "civil_twilight_end"},
+    {"time": "23:00", "warmBrightness": 100, "coolBrightness": 0, "label": "bed_time"},
+    {"time": "23:30", "warmBrightness": 25, "coolBrightness": 0, "label": "night_time"}
+  ]
 }
 ```
 
@@ -108,17 +94,28 @@ GET https://api.example.com/lights
 x-custom-auth: your-secret-token
 ```
 
-The response will contain a complete ScheduleData object as described above.
+Example response:
+
+```json
+{
+  "mode": "dayNight",
+  "serverTime": 1706745600,
+  "brightnessSchedule": [
+    {"time": "06:30", "unixTime": 1706785800, "warmBrightness": 25, "coolBrightness": 0, "label": "civil_twilight_begin"},
+    {"time": "07:00", "unixTime": 1706787600, "warmBrightness": 75, "coolBrightness": 100, "label": "sunrise"},
+    {"time": "19:30", "unixTime": 1706832600, "warmBrightness": 75, "coolBrightness": 100, "label": "sunset"},
+    {"time": "20:00", "unixTime": 1706834400, "warmBrightness": 100, "coolBrightness": 0, "label": "civil_twilight_end"},
+    {"time": "23:00", "unixTime": 1706845200, "warmBrightness": 100, "coolBrightness": 0, "label": "bed_time"},
+    {"time": "23:30", "unixTime": 1706847000, "warmBrightness": 25, "coolBrightness": 0, "label": "night_time"}
+  ]
+}
+```
+
+The `brightnessSchedule` array contains all schedule entries sorted chronologically by `unixTime`. Clients use this array directly for scheduling - no client-side timestamp computation needed.
 
 ## Features
 
 The service handles time updates automatically in several ways:
-
-### Schedule Time Updates
-
-- Fixed schedule entries maintain their HH:MM times but get updated unix timestamps daily
-- Unix timestamps are calculated based on the user's timezone (derived from IP address)
-- The schedule list is executed based on unix timestamps for the current day
 
 ### DayNight Mode
 
@@ -130,13 +127,8 @@ When operating in "dayNight" mode:
 - A minimum sunset time of 19:30 is enforced to prevent early darkness in winter
 - If sunset is before 19:30, dusk is set to 30 minutes after sunset
 - Default sleep schedule (bed_time: 23:00, night_time: 23:30) is applied if not set
+- `unixTime` values are recomputed on every GET request based on current date and client timezone (from IP geolocation). There is no server-side scheduled update; freshness comes from the Pico (or frontend) calling GET.
 
-### Update Schedule
+### Scheduled Mode
 
-- The service automatically updates times daily at 06:00 (configurable)
-- The update_time_unix field indicates when the next update will occur
-- All unix timestamps are recalculated during the daily update
-
-## Attribution
-
-https://sunrise-sunset.org/api
+The API accepts "scheduled" mode but there is no frontend UI for creating custom schedules currently. Only dayNight and demo modes have active frontend support.

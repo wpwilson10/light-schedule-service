@@ -49,3 +49,5 @@ override.tf.json
 .terraformrc
 terraform.rc
 .DS_Store
+.ruff_cache/
+__pycache__/
