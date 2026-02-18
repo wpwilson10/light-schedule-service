@@ -4,7 +4,7 @@
 
 module "lights_config_s3_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "4.2.2"
+  version = "5.10.0"
 
   bucket_prefix = lower("${var.project_name}-lights-config-")
   force_destroy = true
@@ -17,7 +17,7 @@ module "lights_config_s3_bucket" {
 # Function that receives HTTPS POSTS from the client website and updates the lighting schedule configuration file
 module "lambda_post_function" {
   source        = "terraform-aws-modules/lambda/aws"
-  version       = "7.17.0"
+  version       = "8.5.0"
   handler       = local.lambda_handler
   runtime       = local.lambda_runtime
   architectures = local.lambda_architecture
@@ -51,7 +51,7 @@ module "lambda_post_function" {
 # Function that receives HTTPS GETS from the client website and returns the lighting schedule configuration file
 module "lambda_get_function" {
   source        = "terraform-aws-modules/lambda/aws"
-  version       = "7.17.0"
+  version       = "8.5.0"
   handler       = local.lambda_handler
   runtime       = local.lambda_runtime
   architectures = local.lambda_architecture

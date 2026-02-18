@@ -23,9 +23,9 @@ def convert_to_unix_timestamp(time_str: str, utc_offset_seconds: int) -> int:
 
     # Combine local date and time
     local_time = datetime.combine(
-        today_local,
+        today,
         datetime.min.time().replace(hour=hour, minute=minute),
-        tzinfo=timezone(local_offset),
+        tzinfo=timezone(timedelta(seconds=utc_offset_seconds)),
     )
 
     # Convert to UTC timestamp
