@@ -27,6 +27,7 @@ module "lambda_post_function" {
   source_path                       = var.lambda_post_file_directory
   publish                           = true
   cloudwatch_logs_retention_in_days = 90
+  ignore_source_code_hash           = true
 
   # matches variables used in function code
   environment_variables = {
@@ -61,6 +62,7 @@ module "lambda_get_function" {
   source_path                       = var.lambda_get_file_directory
   publish                           = true
   cloudwatch_logs_retention_in_days = 90
+  ignore_source_code_hash           = true
 
   # matches variables used in function code
   environment_variables = {

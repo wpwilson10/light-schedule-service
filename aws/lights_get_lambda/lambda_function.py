@@ -244,6 +244,11 @@ def get_geolocation_data(ip: str) -> GeolocationResponse | None:
     geolocation_url = f"http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,offset,query"
     try:
         geolocation_response = http.request('GET', geolocation_url)
+
+        if geolocation_response.status != 200:
+            logger.warning("Geolocation API returned status %d for IP %s", geolocation_response.status, ip)
+            return None
+
         geolocation_data: GeolocationResponse = json.loads(geolocation_response.data.decode('utf-8'))
 
         # Check if the status is 'success'
@@ -251,7 +256,8 @@ def get_geolocation_data(ip: str) -> GeolocationResponse | None:
             return geolocation_data
         else:
             return None
-    except urllib3.exceptions.RequestError:
+    except (urllib3.exceptions.RequestError, json.JSONDecodeError, KeyError) as e:
+        logger.warning("Geolocation lookup failed for IP %s: %s", ip, e)
         return None
 
 
@@ -263,20 +269,33 @@ def extract_geolocation_details(
 
 
 def get_sunrise_sunset_data(
-    lat: float, lon: float, timezone: str,
+    lat: float,
+    lon: float,
+    timezone: str,
 ) -> SunriseSunsetResponse | None:
     """Fetches sunrise and sunset times using the provided latitude, longitude, and timezone."""
     sunrise_sunset_url = (
         f"https://api.sunrise-sunset.org/json?lat={lat}&lng={lon}&tzid={timezone}"
     )
     try:
-        sunrise_sunset_response = http.request('GET', sunrise_sunset_url)
-        sunrise_sunset_data: SunriseSunsetResponse = json.loads(sunrise_sunset_response.data.decode('utf-8'))
+        sunrise_sunset_response = http.request("GET", sunrise_sunset_url)
+
+        if sunrise_sunset_response.status != 200:
+            logger.warning(
+                "Sunrise-sunset API returned status %d",
+                sunrise_sunset_response.status,
+            )
+            return None
+
+        sunrise_sunset_data: SunriseSunsetResponse = json.loads(
+            sunrise_sunset_response.data.decode("utf-8")
+        )
 
         # Check if the status is 'OK'
         if sunrise_sunset_data["status"] == "OK":
             return sunrise_sunset_data
         else:
             return None
-    except urllib3.exceptions.RequestError:
+    except (urllib3.exceptions.RequestError, json.JSONDecodeError, KeyError) as e:
+        logger.warning("Sunrise-sunset lookup failed: %s", e)
         return None
