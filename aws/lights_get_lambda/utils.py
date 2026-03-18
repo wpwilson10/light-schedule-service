@@ -1,12 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
 
-def convert_to_hhmm(time_str: str) -> str:
-    """Converts time from '4:41:25 PM' format to 'HH:mm' format."""
-    time_obj = datetime.strptime(time_str, "%I:%M:%S %p")
-    return time_obj.strftime("%H:%M")
-
-
 def convert_to_unix_timestamp(time_str: str, utc_offset_seconds: int) -> int:
     """
     Converts time from 'HH:mm' format to Unix timestamp using local date and UTC offset.

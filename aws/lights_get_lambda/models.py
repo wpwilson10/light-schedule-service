@@ -51,17 +51,6 @@ class GeolocationResponse(TypedDict):
     timezone: str
     offset: int  # seconds from UTC
 
-class SunriseSunsetResults(TypedDict):
-    """Results object within sunrise-sunset.org API response."""
-    sunrise: str
-    sunset: str
-    civil_twilight_begin: str
-    civil_twilight_end: str
-
-class SunriseSunsetResponse(TypedDict):
-    """Response from api.sunrise-sunset.org."""
-    status: str
-    results: SunriseSunsetResults
 
 # Add constants for default times
 DEFAULT_BED_TIME = "23:00"
